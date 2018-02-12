@@ -2,7 +2,7 @@
 
 An umbrella review of neutrophil counts (NLR and TAN) and cancer prognosis (OS, CSS, DFS, PFS, RFS).
 
-|Umbrella review of neutrophil counts and cancer prognosis| creates an aggregated set of meta-analyses from data pulled from published studies.
+"Umbrella review of neutrophil counts and cancer prognosis" creates an aggregated set of meta-analyses from data pulled from published studies.
 
 
 Features
