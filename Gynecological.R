@@ -1,10 +1,8 @@
 ## Neutrophil counts and Cancer Prognosis:
 ## an Umbrella Review and Meta-analysis
 
-# Assessment of Gynecological cancers: Gynecologic (OS),
-# Breast (OS, DFS), Cervical (OS, PFS), Ovarian (PFS)
-# -> total 6 meta-analyses and funnel plots
-
+#Load the tidyverse
+library(tidyverse)
 #Load the 'meta' package
 library(meta)
 #Load the 'rmeta' package
@@ -13,92 +11,49 @@ library(rmeta)
 library(gdata)
 #Load the 'metafor' package
 library(metafor)
-#Invoke help manual for metafor
-library(help=metafor)
 #Loading data from Excel
 require(gdata)
 #Link the Excel Databook at your file path
 
-datfile = "~/Google Drive/Dissertation/Chapters/Data Extraction/Data set.xlsx"
+##########################################################
+#         Meta-analysis of Gynecological cancers         #
+##########################################################
+
+#Clean work space
+remove(list = ls())
+
+datfile = "Neutrophils.xlsx"
 #Call "read.xls" to read the specific Excel data sheet
-dat <- read.xls(datfile, sheet="Gynecological", perl="/usr/bin/perl")
-#Print the data
-print(dat)
-View(dat)
+Gynecological <- read.xls(datfile, sheet="Gynecological", perl="/usr/bin/perl")
 
 #Effect sizes == LogHR
 #Calculate log HR
-dat$yi <- with(dat, log(HR))
+Gynecological$yi <- with(Gynecological, log(HR))
 
 #back transform 95% CIs to find standard error
 #SE = [Log(U)-Log(HR)]/1.96
-dat$sei <- ((log(dat$Upper.CI)-dat$yi)/1.96)
-
-
+Gynecological$sei <- ((log(Gynecological$Upper.CI)-Gynecological$yi)/1.96)
 
 #Use generic inverse variance meta-analysis to calculate pooled HR from
 #log(HR) and standard error
 ## inverse variance weighting is used for pooling results
-gynOS <- metagen(TE = dat$yi, seTE = dat$sei, data = NULL, studlab = dat$Author, 
-        subset=(dat$Outcome =="OS" & dat$Site == "Gynecologic"), sm ="HR", 
-        prediction = TRUE, comb.random = TRUE)
+  
+#create a function which conducts a meta-analysis and constructs forest plot when
+#given meta-analysis ID number as function(ID)
 
-forest.meta(gynOS, studlab = TRUE, 
-            comb.random = gynOS$comb.random, 
-            comb.fixed = gynOS$comb.fixed,
-            text.random = "Pooled HR by Random Effects",
-            text.fixed = "Pooled HR by Fixed Effects", 
-            lyt.random = TRUE, 
-            lyt.fixed = TRUE, 
-            type.study="square", 
-            type.fixed="diamond", 
-            type.random="diamond", 
-            col.study="black", 
-            col.square="lightskyblue3", 
-            col.inside="white", 
-            col.diamond="lightskyblue3", 
-            col.diamond.lines="dodgerblue4", 
-            col.predict="dodgerblue4", 
-            col.predict.lines="dodgerblue4", 
-            col.by="dodgerblue4", 
-            col.label.right="black",
-            col.label.left="black", 
-            hetlab = "Heterogeneity: ", 
-            print.I2 = gynOS$comb.fixed | gynOS$comb.random, 
-            print.I2.ci = FALSE, 
-            print.tau2 = FALSE, 
-            print.Q = TRUE, 
-            print.Rb = FALSE, 
-            print.Rb.ci = FALSE)
-
-#print meta data on gynOS
-print(gynOS)
-
-#funnel plot
-funnel.meta(gynOS, pch=1, 
-            col.fixed = "dodgerblue4",
-            col.random = "lightskyblue3",
-            backtransf = FALSE)
-
-#test for asymmetry in funnel plot
-metabias(gynOS, method.bias = "linreg", 
-         plotit = TRUE, correct = FALSE,
-         k.min=2)
-
-
-
-
-
-#Use generic inverse variance meta-analysis to calculate pooled HR from
-#log(HR) and standard error
-## inverse variance weighting is used for pooling results
-breOS <- metagen(TE = dat$yi, seTE = dat$sei, data = NULL, studlab = dat$Author, 
-                 subset=(dat$Outcome =="OS" & dat$Site == "Breast"), sm ="HR", 
+meta.write <- function(ID) {
+  Gyn <- metagen(TE = Gynecological$yi, seTE = Gynecological$sei, data = NULL, studlab = Gynecological$Author, 
+                 subset=(Gynecological$id==ID), sm ="HR", hakn=gs("hakn"), method.tau = "REML",
                  prediction = TRUE, comb.random = TRUE)
 
-forest.meta(breOS, studlab = TRUE, 
-            comb.random = breOS$comb.random, 
-            comb.fixed = breOS$comb.fixed,
+forest.meta(Gyn, studlab = TRUE, 
+            comb.random = Gyn$comb.random, 
+            comb.fixed = Gyn$comb.fixed,
+            hakn=gs("hakn"),       #create a forest plot using hakn=gs("hakn") to call the
+                                   #Hartung and Knapp method to adjust confidence intervals
+            method.tau="REML",     #utilise method.tau="REML" to call the Restricted
+                                   #maximum-likelihood estimator to estimate between study variance
+                                   #as tau^2
             text.random = "Pooled HR by Random Effects",
             text.fixed = "Pooled HR by Fixed Effects", 
             lyt.random = TRUE, 
@@ -108,7 +63,7 @@ forest.meta(breOS, studlab = TRUE,
             type.random="diamond", 
             col.study="black", 
             col.square="lightskyblue3", 
-            col.inside="white", 
+            col.inside="black", 
             col.diamond="lightskyblue3", 
             col.diamond.lines="dodgerblue4", 
             col.predict="dodgerblue4", 
@@ -117,270 +72,81 @@ forest.meta(breOS, studlab = TRUE,
             col.label.right="black",
             col.label.left="black", 
             hetlab = "Heterogeneity: ", 
-            print.I2 = breOS$comb.fixed | breOS$comb.random, 
-            print.I2.ci = FALSE, 
+            print.I2 = Gyn$comb.fixed | Gyn$comb.random, 
+            print.I2.ci = TRUE, 
             print.tau2 = FALSE, 
             print.Q = TRUE, 
             print.Rb = FALSE, 
             print.Rb.ci = FALSE)
+return(Gyn)
+}
 
-#print meta data on breOS
-print(breOS)
+#create a function which creates a funnel plot when given meta-analysis constructed
+#by function meta.write
 
-#funnel plot
-funnel.meta(breOS, pch=1, 
-            col.fixed = "dodgerblue4",
-            col.random = "lightskyblue3",
-            backtransf = FALSE)
+auto.funnel <- function(Gyn){
+  funnel <- funnel.meta(Gyn, pch=1,
+              col.fixed = "dodgerblue4",
+              col.random = "lightskyblue3",
+              backtransf = FALSE)
+  return(funnel)
+}
 
-#test for asymmetry in funnel plot
-metabias(breOS, method.bias = "linreg", 
-         plotit = TRUE, correct = FALSE,
-         k.min=2)
+#create a function which conducts metabias when given meta-analysis constructed
+#by function meta.write
 
+auto.asymmetry <- function(Gyn){
+  bias <- metabias(Gyn, method.bias = "linreg", 
+                   plotit = TRUE, correct = FALSE,
+                   k.min=2)
+  return(bias)
+}
 
+pdf(file = "Gynecological/GynForest%03d.pdf", width=9, height=10, onefile=FALSE)
+forest.plots <- lapply(1:13, meta.write)
+dev.off()
 
+pdf(file = "Gynecological/GynFunnel%03d.pdf", width=7, height=, onefile=FALSE)
+funnel.plots <- lapply(forest.plots, auto.funnel)
+dev.off()
 
-
-#Use generic inverse variance meta-analysis to calculate pooled HR from
-#log(HR) and standard error
-## inverse variance weighting is used for pooling results
-breDFS <- metagen(TE = dat$yi, seTE = dat$sei, data = NULL, studlab = dat$Author, 
-                 subset=(dat$Outcome =="DFS" & dat$Site == "Breast"), sm ="HR", 
-                 prediction = TRUE, comb.random = TRUE)
-
-forest.meta(breDFS, studlab = TRUE, 
-            comb.random = breDFS$comb.random, 
-            comb.fixed = breDFS$comb.fixed,
-            text.random = "Pooled HR by Random Effects",
-            text.fixed = "Pooled HR by Fixed Effects", 
-            lyt.random = TRUE, 
-            lyt.fixed = TRUE, 
-            type.study="square", 
-            type.fixed="diamond", 
-            type.random="diamond", 
-            col.study="black", 
-            col.square="lightskyblue3", 
-            col.inside="white", 
-            col.diamond="lightskyblue3", 
-            col.diamond.lines="dodgerblue4", 
-            col.predict="dodgerblue4", 
-            col.predict.lines="dodgerblue4", 
-            col.by="dodgerblue4", 
-            col.label.right="black",
-            col.label.left="black", 
-            hetlab = "Heterogeneity: ", 
-            print.I2 = breDFS$comb.fixed | breDFS$comb.random, 
-            print.I2.ci = FALSE, 
-            print.tau2 = FALSE, 
-            print.Q = TRUE, 
-            print.Rb = FALSE, 
-            print.Rb.ci = FALSE)
-
-#print meta data on breDFS
-print(breDFS)
-
-#funnel plot
-funnel.meta(breDFS, pch=1, 
-            col.fixed = "dodgerblue4",
-            col.random = "lightskyblue3",
-            backtransf = FALSE)
-
-#test for asymmetry in funnel plot
-metabias(breDFS, method.bias = "linreg", 
-         plotit = TRUE, correct = FALSE,
-         k.min=2)
+pdf(file = "Gynecological/GynBias%03d.pdf", width=7, height=6, onefile=FALSE)
+test.bias <- lapply(forest.plots, auto.asymmetry)
+dev.off()
 
 
-
-
-
-#Use generic inverse variance meta-analysis to calculate pooled HR from
-#log(HR) and standard error
-## inverse variance weighting is used for pooling results
-cerOS <- metagen(TE = dat$yi, seTE = dat$sei, data = NULL, studlab = dat$Author, 
-                  subset=(dat$Outcome =="OS" & dat$Site == "Cervical"), sm ="HR", 
-                  prediction = TRUE, comb.random = TRUE)
-
-forest.meta(cerOS, studlab = TRUE, 
-            comb.random = cerOS$comb.random, 
-            comb.fixed = cerOS$comb.fixed,
-            text.random = "Pooled HR by Random Effects",
-            text.fixed = "Pooled HR by Fixed Effects", 
-            lyt.random = TRUE, 
-            lyt.fixed = TRUE, 
-            type.study="square", 
-            type.fixed="diamond", 
-            type.random="diamond", 
-            col.study="black", 
-            col.square="lightskyblue3", 
-            col.inside="white", 
-            col.diamond="lightskyblue3", 
-            col.diamond.lines="dodgerblue4", 
-            col.predict="dodgerblue4", 
-            col.predict.lines="dodgerblue4", 
-            col.by="dodgerblue4", 
-            col.label.right="black",
-            col.label.left="black", 
-            hetlab = "Heterogeneity: ", 
-            print.I2 = cerOS$comb.fixed | cerOS$comb.random, 
-            print.I2.ci = FALSE, 
-            print.tau2 = FALSE, 
-            print.Q = TRUE, 
-            print.Rb = FALSE, 
-            print.Rb.ci = FALSE)
-
-#print meta data on cerOS
-print(cerOS)
-
-#funnel plot
-funnel.meta(cerOS, pch=1, 
-            col.fixed = "dodgerblue4",
-            col.random = "lightskyblue3",
-            backtransf = FALSE)
-
-#test for asymmetry in funnel plot
-metabias(cerOS, method.bias = "linreg", 
-         plotit = TRUE, correct = FALSE,
-         k.min=2)
-
-
-
-
-
-#Use generic inverse variance meta-analysis to calculate pooled HR from
-#log(HR) and standard error
-## inverse variance weighting is used for pooling results
-cerPFS <- metagen(TE = dat$yi, seTE = dat$sei, data = NULL, studlab = dat$Author, 
-                  subset=(dat$Outcome =="PFS" & dat$Site == "Cervical"), sm ="HR", 
-                  prediction = TRUE, comb.random = TRUE)
-
-forest.meta(cerPFS, studlab = TRUE, 
-            comb.random = cerPFS$comb.random, 
-            comb.fixed = cerPFS$comb.fixed,
-            text.random = "Pooled HR by Random Effects",
-            text.fixed = "Pooled HR by Fixed Effects", 
-            lyt.random = TRUE, 
-            lyt.fixed = TRUE, 
-            type.study="square", 
-            type.fixed="diamond", 
-            type.random="diamond", 
-            col.study="black", 
-            col.square="lightskyblue3", 
-            col.inside="white", 
-            col.diamond="lightskyblue3", 
-            col.diamond.lines="dodgerblue4", 
-            col.predict="dodgerblue4", 
-            col.predict.lines="dodgerblue4", 
-            col.by="dodgerblue4", 
-            col.label.right="black",
-            col.label.left="black", 
-            hetlab = "Heterogeneity: ", 
-            print.I2 = cerPFS$comb.fixed | cerPFS$comb.random, 
-            print.I2.ci = FALSE, 
-            print.tau2 = FALSE, 
-            print.Q = TRUE, 
-            print.Rb = FALSE, 
-            print.Rb.ci = FALSE)
-
-#print meta data on cerPFS
-print(cerPFS)
-
-#funnel plot
-funnel.meta(cerPFS, pch=1, 
-            col.fixed = "dodgerblue4",
-            col.random = "lightskyblue3",
-            backtransf = FALSE)
-
-#test for asymmetry in funnel plot
-metabias(cerPFS, method.bias = "linreg", 
-         plotit = TRUE, correct = FALSE,
-         k.min=2)
-
-
-
-
-
-#Use generic inverse variance meta-analysis to calculate pooled HR from
-#log(HR) and standard error
-## inverse variance weighting is used for pooling results
-ovaPFS <- metagen(TE = dat$yi, seTE = dat$sei, data = NULL, studlab = dat$Author, 
-                  subset=(dat$Outcome =="PFS" & dat$Site == "Ovarian"), sm ="HR", 
-                  prediction = TRUE, comb.random = TRUE)
-
-forest.meta(ovaPFS, studlab = TRUE, 
-            comb.random = ovaPFS$comb.random, 
-            comb.fixed = ovaPFS$comb.fixed,
-            text.random = "Pooled HR by Random Effects",
-            text.fixed = "Pooled HR by Fixed Effects", 
-            lyt.random = TRUE, 
-            lyt.fixed = TRUE, 
-            type.study="square", 
-            type.fixed="diamond", 
-            type.random="diamond", 
-            col.study="black", 
-            col.square="lightskyblue3", 
-            col.inside="white", 
-            col.diamond="lightskyblue3", 
-            col.diamond.lines="dodgerblue4", 
-            col.predict="dodgerblue4", 
-            col.predict.lines="dodgerblue4", 
-            col.by="dodgerblue4", 
-            col.label.right="black",
-            col.label.left="black", 
-            hetlab = "Heterogeneity: ", 
-            print.I2 = ovaPFS$comb.fixed | ovaPFS$comb.random, 
-            print.I2.ci = FALSE, 
-            print.tau2 = FALSE, 
-            print.Q = TRUE, 
-            print.Rb = FALSE, 
-            print.Rb.ci = FALSE)
-
-#print meta data on ovaPFS
-print(ovaPFS)
-
-#funnel plot
-funnel.meta(ovaPFS, pch=1, 
-            col.fixed = "dodgerblue4",
-            col.random = "lightskyblue3",
-            backtransf = FALSE)
-
-#test for asymmetry in funnel plot
-metabias(ovaPFS, method.bias = "linreg", 
-         plotit = TRUE, correct = FALSE,
-         k.min=2)
-
-
-# Figures for data visualisation and exploration 
-
+##########################################################
+#     Figures for data visualisation and exploration     #
+##########################################################
 
 #load ggplot2
 library(ggplot2)
 
 #make Site categorical to bin by site on boxplot x axis
-dat$Site <- as.character(dat$Site)
-typeof(dat$Site)
-typeof(dat$HR)
+Gynecological$Site <- as.character(Gynecological$Site)
+typeof(Gynecological$Site)
+typeof(Gynecological$HR)
 
 #Boxplots
-
 #create boxplot in ggplot2
-box <- ggplot(data=dat, aes(x=Site, y=HR), 
+box <- ggplot(data=Gynecological, aes(x=Site, y=HR), 
               xlab="Site", ylab="Random Effects Hazard Ratio Estimate", 
               main="Boxplot of Hazard Ratio by Cancer Diagnosis") + 
   geom_boxplot(color="dodgerblue4", fill="lightskyblue3", outlier.color = NA,  
-               alpha=0.5 )  +  coord_cartesian(ylim = c(0, 10)) + geom_jitter(alpha = 0.5, 
+               alpha=0.5 )  +  coord_cartesian(ylim = c(0, 7.5)) + geom_jitter(alpha = 0.5, 
                                                                               color = "lightskyblue3") + theme_bw()
 box
-
-
-
+ggsave("Gynecological/GynBoxSite.pdf")
 
 #plot by site on Y
-box_out <- ggplot(data=dat, aes(x=Outcome, y=HR), 
+box_out <- ggplot(data=Gynecological, aes(x=Outcome, y=HR), 
                   xlab="Outcome", ylab="Random Effects Hazard Ratio Estimate", 
                   main="Boxplot of Hazard Ratio by Cancer Diagnosis") + 
   geom_boxplot(color="dodgerblue4", fill="lightskyblue3", outlier.color = NA,  
-               alpha=0.5 ) + geom_jitter(alpha = 0.5, 
-                                                                             color = "lightskyblue3") + theme_bw()
+               alpha=0.5 ) + coord_cartesian(ylim = c(0, 7.5)) + geom_jitter(alpha = 0.5, 
+                                         color = "lightskyblue3") + theme_bw()
 box_out
+ggsave("Gynecological/GynBoxOutcome.pdf")
+
+#Clean work space
+remove(list = ls())
