@@ -107,7 +107,7 @@ auto.asymmetry <- function(Gas){
 }
 
 pdf(file = "Gastrointestinal/GasForest%03d.pdf", width=9, height=11, onefile=FALSE)
-forest.plots <- lapply(1:28, meta.write)
+forest.plots <- lapply(1:8, meta.write)
 dev.off()
 
 pdf(file = "Gastrointestinal/GasFunnel%03d.pdf", width=7, height=, onefile=FALSE)
