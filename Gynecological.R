@@ -44,8 +44,9 @@ Gynecological$sei <- ((log(Gynecological$Upper.CI)-Gynecological$yi)/1.96)
 meta.write <- function(ID) {
   Gyn <- metagen(TE = Gynecological$yi, seTE = Gynecological$sei, data = NULL, studlab = Gynecological$Author, 
                  subset=(Gynecological$id==ID), sm ="HR", hakn=gs("hakn"), method.tau = "REML",
-                 prediction = TRUE, comb.random = TRUE)
-
+                 prediction = TRUE, comb.random = TRUE, label.left="ES")
+#for arcsin test described in Rücker et al 2008, set sm from "HR" to "ASD"
+  
 forest.meta(Gyn, studlab = TRUE, 
             comb.random = Gyn$comb.random, 
             comb.fixed = Gyn$comb.fixed,
@@ -92,11 +93,20 @@ auto.funnel <- function(Gyn){
   return(funnel)
 }
 
+#for arcsin test described in Rücker et al 2008, set sm from "HR" to "ASD"
+meta.arc <- function(ID) {
+  GynASD <- metagen(TE = Gynecological$yi, seTE = Gynecological$sei, data = NULL, studlab = Gynecological$Author, 
+                    subset=(Gynecological$id==ID), sm ="ASD", hakn=gs("hakn"), method.tau = "REML",
+                    prediction = TRUE, comb.random = TRUE, label.left="ES")
+  return(GynASD)
+}
+
 #create a function which conducts metabias when given meta-analysis constructed
 #by function meta.write
-
-auto.asymmetry <- function(Gyn){
-  bias <- metabias(Gyn, method.bias = "linreg", 
+#set method.bias to mm for the Arc-Thompson test, which performed best
+#in simulations at takes account of heterogeneity
+auto.asymmetry <- function(GynASD){
+  bias <- metabias(GynASD, method.bias = "mm", 
                    plotit = TRUE, correct = FALSE,
                    k.min=2)
   return(bias)
@@ -114,6 +124,32 @@ pdf(file = "Gynecological/GynBias%03d.pdf", width=7, height=6, onefile=FALSE)
 test.bias <- lapply(forest.plots, auto.asymmetry)
 dev.off()
 
+#write to excel
+library(openxlsx)
+path_template <- file.path("All_results Template.xlsx")
+wb <- loadWorkbook(path_template)
+
+
+for (i in 1:13) {
+outputs <- c(forest.plots[[i]][["TE.fixed"]], forest.plots[[i]][["lower.fixed"]], 
+             forest.plots[[i]][["upper.fixed"]], forest.plots[[i]][["pval.fixed"]], 
+             forest.plots[[i]][["TE.random"]], forest.plots[[i]][["lower.random"]], 
+             forest.plots[[i]][["upper.random"]], forest.plots[[i]][["pval.random"]], 
+             forest.plots[[i]][["lower.predict"]], forest.plots[[i]][["upper.predict"]],
+             forest.plots[[i]][["Q"]], forest.plots[[i]][["pval.Q"]], forest.plots[[i]][["tau"]], 
+             forest.plots[[i]][["se.tau2"]], forest.plots[[i]][["I2"]], forest.plots[[i]][["lower.I2"]],
+             forest.plots[[i]][["upper.I2"]])
+outputs <- t(outputs)
+writeData(wb, outputs, sheet = "1", startRow = (i+1), startCol = 2, colNames = FALSE)
+}
+
+for (i in 1:13) {
+sig.bias <- test.bias[[i]][["p.value"]]
+writeData(wb, sig.bias, sheet = "1", startRow = (i+1), startCol = 19, colNames = FALSE)
+}
+
+path_output <- file.path("Gyn_results.xlsx")
+saveWorkbook(wb, file = path_output, overwrite = FALSE)
 
 ##########################################################
 #     Figures for data visualisation and exploration     #
