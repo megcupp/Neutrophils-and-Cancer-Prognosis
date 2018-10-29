@@ -92,11 +92,20 @@ auto.funnel <- function(Hep){
   return(funnel)
 }
 
+#for arcsin test described in Rücker et al 2008, set sm from "HR" to "ASD"
+meta.arc <- function(ID) {
+  HepASD <- metagen(TE = Hepatocellular$yi, seTE = Hepatocellular$sei, data = NULL, studlab = Hepatocellular$Author, 
+                    subset=(Hepatocellular$id==ID), sm ="ASD", hakn=gs("hakn"), method.tau = "REML",
+                    prediction = TRUE, comb.random = TRUE, label.left="ES")
+  return(HepASD)
+}
+
 #create a function which conducts metabias when given meta-analysis constructed
 #by function meta.write
-
-auto.asymmetry <- function(Hep){
-  bias <- metabias(Hep, method.bias = "linreg", 
+#set method.bias to mm for the Arc-Thompson test, which performed best
+#in simulations at takes account of heterogeneity
+auto.asymmetry <- function(HepASD){
+  bias <- metabias(HepASD, method.bias = "mm", 
                    plotit = TRUE, correct = FALSE,
                    k.min=2)
   return(bias)
@@ -114,6 +123,33 @@ pdf(file = "Hepatocellular/HepBias%03d.pdf", width=7, height=6, onefile=FALSE)
 test.bias <- lapply(forest.plots, auto.asymmetry)
 dev.off()
 
+
+#write to excel
+library(openxlsx)
+path_template <- file.path("All_results Template.xlsx")
+wb <- loadWorkbook(path_template)
+
+
+for (i in 1:12) {
+  outputs <- c(forest.plots[[i]][["TE.fixed"]], forest.plots[[i]][["lower.fixed"]], 
+               forest.plots[[i]][["upper.fixed"]], forest.plots[[i]][["pval.fixed"]], 
+               forest.plots[[i]][["TE.random"]], forest.plots[[i]][["lower.random"]], 
+               forest.plots[[i]][["upper.random"]], forest.plots[[i]][["pval.random"]], 
+               forest.plots[[i]][["lower.predict"]], forest.plots[[i]][["upper.predict"]],
+               forest.plots[[i]][["Q"]], forest.plots[[i]][["pval.Q"]], forest.plots[[i]][["tau"]], 
+               forest.plots[[i]][["se.tau2"]], forest.plots[[i]][["I2"]], forest.plots[[i]][["lower.I2"]],
+               forest.plots[[i]][["upper.I2"]])
+  outputs <- t(outputs)
+  writeData(wb, outputs, sheet = "1", startRow = (i+1), startCol = 2, colNames = FALSE)
+}
+
+for (i in 1:12) {
+  sig.bias <- test.bias[[i]][["p.value"]]
+  writeData(wb, sig.bias, sheet = "1", startRow = (i+1), startCol = 19, colNames = FALSE)
+}
+
+path_output <- file.path("Hep_results.xlsx")
+saveWorkbook(wb, file = path_output, overwrite = FALSE)
 
 ##########################################################
 #     Figures for data visualisation and exploration     #
